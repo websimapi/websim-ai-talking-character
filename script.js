@@ -1,6 +1,7 @@
 let currentCharacterFrames = { neutral: null, talking: null };
 let isGenerating = false;
 let isSpeaking = false;
+let talkInterval = null;
 
 const characterImg = document.getElementById('character');
 const mouthOverlay = document.getElementById('mouthOverlay');
@@ -83,19 +84,13 @@ async function speakText() {
         // Create audio element
         const audio = new Audio(ttsResult.url);
         
-        // Start mouth animation cycling
-        let animationInterval;
-        let isTalkingFrame = false;
-        
-        const startAnimation = () => {
-            animationInterval = setInterval(() => {
-                isTalkingFrame = !isTalkingFrame;
-                characterImg.src = isTalkingFrame ? currentCharacterFrames.talking : currentCharacterFrames.neutral;
-            }, 200); // Switch every 200ms for natural talking effect
-        };
-        
-        // Start animation immediately
-        startAnimation();
+        // Start mouth animation by cycling frames
+        let showTalking = true;
+        characterImg.src = currentCharacterFrames.talking;
+        talkInterval = setInterval(() => {
+            characterImg.src = showTalking ? currentCharacterFrames.talking : currentCharacterFrames.neutral;
+            showTalking = !showTalking;
+        }, 200); // toggle every 200ms
         
         // Play audio
         audio.play();
@@ -105,7 +100,8 @@ async function speakText() {
         
         // Stop animation when audio ends
         audio.addEventListener('ended', () => {
-            clearInterval(animationInterval);
+            clearInterval(talkInterval);
+            talkInterval = null;
             characterImg.src = currentCharacterFrames.neutral;
             isSpeaking = false;
             speakBtn.disabled = false;
@@ -114,7 +110,7 @@ async function speakText() {
         
         // Handle audio errors
         audio.addEventListener('error', () => {
-            clearInterval(animationInterval);
+            if (talkInterval) { clearInterval(talkInterval); talkInterval = null; }
             characterImg.src = currentCharacterFrames.neutral;
             isSpeaking = false;
             speakBtn.disabled = false;
@@ -123,6 +119,7 @@ async function speakText() {
         
     } catch (error) {
         console.error('Error with TTS:', error);
+        if (talkInterval) { clearInterval(talkInterval); talkInterval = null; }
         characterImg.src = currentCharacterFrames.neutral;
         isSpeaking = false;
         speakBtn.disabled = false;
