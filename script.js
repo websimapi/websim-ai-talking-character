@@ -1,4 +1,5 @@
 let currentCharacterFrames = { neutral: null, talking: null };
+let uploadedNeutralDataUrl = null; // new: store uploaded start frame
 let isGenerating = false;
 let isSpeaking = false;
 let talkInterval = null;
@@ -9,9 +10,28 @@ const textInput = document.getElementById('textInput');
 const generateBtn = document.getElementById('generateBtn');
 const speakBtn = document.getElementById('speakBtn');
 const status = document.getElementById('status');
+const uploadInput = document.getElementById('uploadInput');
+const useUploadBtn = document.getElementById('useUploadBtn');
 
 generateBtn.addEventListener('click', generateCharacter);
 speakBtn.addEventListener('click', speakText);
+useUploadBtn.addEventListener('click', () => {
+    const file = uploadInput.files && uploadInput.files[0];
+    if (!file) {
+        status.textContent = 'Please choose an image file to upload first.';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+        uploadedNeutralDataUrl = reader.result;
+        currentCharacterFrames.neutral = uploadedNeutralDataUrl;
+        characterImg.src = uploadedNeutralDataUrl;
+        status.textContent = 'Uploaded image set as neutral frame. Now click "Generate Character" to create talking frame.';
+        // After upload, switch input placeholder to generate prompt for talking frame if desired
+        textInput.placeholder = 'Enter prompt for talking frame / style...';
+    };
+    reader.readAsDataURL(file);
+});
 
 async function generateCharacter() {
     if (isGenerating) return;
@@ -25,31 +45,45 @@ async function generateCharacter() {
     
     isGenerating = true;
     generateBtn.disabled = true;
-    status.textContent = 'Generating character... This will take about 20 seconds (2 images).';
+    status.textContent = 'Generating character... This may take about 20 seconds (1-2 images).';
     
     try {
-        // Generate first frame using Flux Schnell
-        status.textContent = 'Generating neutral frame with Flux Schnell...';
-        const result1 = await websim.imageGen({
-            prompt: promptText, // use user's input as generation prompt
-            width: 512,
-            height: 512
-        });
-        
-        currentCharacterFrames.neutral = result1.url;
-        characterImg.src = currentCharacterFrames.neutral;
+        let result1 = null;
+        // If an uploaded neutral exists, use it instead of generating with Flux Schnell
+        if (uploadedNeutralDataUrl) {
+            status.textContent = 'Using uploaded neutral frame...';
+            currentCharacterFrames.neutral = uploadedNeutralDataUrl;
+            characterImg.src = currentCharacterFrames.neutral;
+            // convert dataURL to blob-like input for imageGen if needed
+            result1 = { url: currentCharacterFrames.neutral };
+        } else {
+            // Generate first frame using Flux Schnell
+            status.textContent = 'Generating neutral frame with Flux Schnell...';
+            result1 = await websim.imageGen({
+                prompt: promptText, // use user's input as generation prompt
+                width: 512,
+                height: 512
+            });
+            currentCharacterFrames.neutral = result1.url;
+            characterImg.src = currentCharacterFrames.neutral;
+        }
         
         // Generate talking frame using Nano Bananas by showing the first image
         status.textContent = 'Generating talking frame with Nano Bananas...';
         
-        // Convert first image to base64 for input
-        const response = await fetch(result1.url);
-        const blob = await response.blob();
-        const base64 = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-        });
+        // Convert first image to base64 for input (handle dataURL already)
+        let base64;
+        if (result1.url.startsWith('data:')) {
+            base64 = result1.url;
+        } else {
+            const response = await fetch(result1.url);
+            const blob = await response.blob();
+            base64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
         
         const result2 = await websim.imageGen({
             prompt: "Make this character's mouth open as if talking or speaking, keep the same art style and colors",
@@ -66,8 +100,6 @@ async function generateCharacter() {
         textInput.placeholder = 'Enter text to speak...';
         textInput.disabled = false;
         speakBtn.disabled = false;
-        // optionally disable generate to avoid accidental re-generation until user clears prompt
-        // keep generate enabled so they can regenerate if desired
     } catch (error) {
         console.error('Error generating character:', error);
         status.textContent = 'Error generating character. Please try again.';

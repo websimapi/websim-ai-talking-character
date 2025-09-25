@@ -79,6 +79,14 @@ input[type="text"] {
     color: #333;
 }
 
+input[type="file"] {
+    padding: 0.6rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.95);
+    color: #333;
+    cursor: pointer;
+}
+
 .btn {
     padding: 1rem 2rem;
     border: none;
@@ -111,6 +119,16 @@ input[type="text"] {
     background: #ff5252;
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+#useUploadBtn {
+    background: #4aa3ff;
+    color: white;
+}
+
+#useUploadBtn:hover {
+    background: #3a8ee6;
+    transform: translateY(-2px);
 }
 
 .status {
