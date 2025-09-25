@@ -84,7 +84,18 @@ async function speakText() {
         const audio = new Audio(ttsResult.url);
         
         // Start mouth animation cycling
-        startFrameCycling();
+        let animationInterval;
+        let isTalkingFrame = false;
+        
+        const startAnimation = () => {
+            animationInterval = setInterval(() => {
+                isTalkingFrame = !isTalkingFrame;
+                characterImg.src = isTalkingFrame ? currentCharacterFrames.talking : currentCharacterFrames.neutral;
+            }, 200); // Switch every 200ms for natural talking effect
+        };
+        
+        // Start animation immediately
+        startAnimation();
         
         // Play audio
         audio.play();
@@ -94,7 +105,8 @@ async function speakText() {
         
         // Stop animation when audio ends
         audio.addEventListener('ended', () => {
-            stopFrameCycling();
+            clearInterval(animationInterval);
+            characterImg.src = currentCharacterFrames.neutral;
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Ready to speak again!';
@@ -102,7 +114,8 @@ async function speakText() {
         
         // Handle audio errors
         audio.addEventListener('error', () => {
-            stopFrameCycling();
+            clearInterval(animationInterval);
+            characterImg.src = currentCharacterFrames.neutral;
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Error playing audio. Please try again.';
@@ -110,37 +123,11 @@ async function speakText() {
         
     } catch (error) {
         console.error('Error with TTS:', error);
-        stopFrameCycling();
+        characterImg.src = currentCharacterFrames.neutral;
         isSpeaking = false;
         speakBtn.disabled = false;
         status.textContent = 'Error generating speech. Please try again.';
     }
-}
-
-let frameInterval;
-let isCycling = false;
-
-function startFrameCycling() {
-    if (isCycling) return;
-    isCycling = true;
-    
-    // Cycle between frames every 150ms
-    frameInterval = setInterval(() => {
-        if (characterImg.src === currentCharacterFrames.neutral) {
-            characterImg.src = currentCharacterFrames.talking;
-        } else {
-            characterImg.src = currentCharacterFrames.neutral;
-        }
-    }, 150);
-}
-
-function stopFrameCycling() {
-    isCycling = false;
-    if (frameInterval) {
-        clearInterval(frameInterval);
-    }
-    // Reset to neutral frame
-    characterImg.src = currentCharacterFrames.neutral;
 }
 
 // Initialize UI state
