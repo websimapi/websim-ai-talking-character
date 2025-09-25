@@ -83,8 +83,8 @@ async function speakText() {
         // Create audio element
         const audio = new Audio(ttsResult.url);
         
-        // Start mouth animation by switching to talking frame
-        characterImg.src = currentCharacterFrames.talking;
+        // Start mouth animation cycling
+        startFrameCycling();
         
         // Play audio
         audio.play();
@@ -94,7 +94,7 @@ async function speakText() {
         
         // Stop animation when audio ends
         audio.addEventListener('ended', () => {
-            characterImg.src = currentCharacterFrames.neutral;
+            stopFrameCycling();
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Ready to speak again!';
@@ -102,7 +102,7 @@ async function speakText() {
         
         // Handle audio errors
         audio.addEventListener('error', () => {
-            characterImg.src = currentCharacterFrames.neutral;
+            stopFrameCycling();
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Error playing audio. Please try again.';
@@ -110,11 +110,37 @@ async function speakText() {
         
     } catch (error) {
         console.error('Error with TTS:', error);
-        characterImg.src = currentCharacterFrames.neutral;
+        stopFrameCycling();
         isSpeaking = false;
         speakBtn.disabled = false;
         status.textContent = 'Error generating speech. Please try again.';
     }
+}
+
+let frameInterval;
+let isCycling = false;
+
+function startFrameCycling() {
+    if (isCycling) return;
+    isCycling = true;
+    
+    // Cycle between frames every 150ms
+    frameInterval = setInterval(() => {
+        if (characterImg.src === currentCharacterFrames.neutral) {
+            characterImg.src = currentCharacterFrames.talking;
+        } else {
+            characterImg.src = currentCharacterFrames.neutral;
+        }
+    }, 150);
+}
+
+function stopFrameCycling() {
+    isCycling = false;
+    if (frameInterval) {
+        clearInterval(frameInterval);
+    }
+    // Reset to neutral frame
+    characterImg.src = currentCharacterFrames.neutral;
 }
 
 // Initialize UI state
