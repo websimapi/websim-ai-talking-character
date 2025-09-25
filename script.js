@@ -1,4 +1,4 @@
-let currentCharacterUrl = null;
+let currentCharacterFrames = { neutral: null, talking: null };
 let isGenerating = false;
 let isSpeaking = false;
 
@@ -17,20 +17,42 @@ async function generateCharacter() {
     
     isGenerating = true;
     generateBtn.disabled = true;
-    status.textContent = 'Generating character... This will take about 10 seconds.';
+    status.textContent = 'Generating character... This will take about 20 seconds (2 images).';
     
     try {
-        // Generate the first frame (neutral expression)
+        // Generate first frame using Flux Schnell
+        status.textContent = 'Generating neutral frame with Flux Schnell...';
         const result1 = await websim.imageGen({
             prompt: "A friendly cartoon character face, neutral expression, clean simple design, bright colors, 2D illustration style",
             width: 512,
             height: 512
         });
         
-        currentCharacterUrl = result1.url;
-        characterImg.src = currentCharacterUrl;
+        currentCharacterFrames.neutral = result1.url;
+        characterImg.src = currentCharacterFrames.neutral;
         
-        status.textContent = 'Character generated! Now you can make it talk.';
+        // Generate talking frame using Nano Bananas by showing the first image
+        status.textContent = 'Generating talking frame with Nano Bananas...';
+        
+        // Convert first image to base64 for input
+        const response = await fetch(result1.url);
+        const blob = await response.blob();
+        const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+        
+        const result2 = await websim.imageGen({
+            prompt: "Make this character's mouth open as if talking or speaking, keep the same art style and colors",
+            image_inputs: [{ url: base64 }],
+            width: 512,
+            height: 512
+        });
+        
+        currentCharacterFrames.talking = result2.url;
+        
+        status.textContent = 'Character generated with 2 frames! Now you can make it talk.';
         textInput.disabled = false;
         speakBtn.disabled = false;
         
@@ -61,8 +83,8 @@ async function speakText() {
         // Create audio element
         const audio = new Audio(ttsResult.url);
         
-        // Start mouth animation
-        mouthOverlay.classList.add('talking');
+        // Start mouth animation by switching to talking frame
+        characterImg.src = currentCharacterFrames.talking;
         
         // Play audio
         audio.play();
@@ -72,7 +94,7 @@ async function speakText() {
         
         // Stop animation when audio ends
         audio.addEventListener('ended', () => {
-            mouthOverlay.classList.remove('talking');
+            characterImg.src = currentCharacterFrames.neutral;
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Ready to speak again!';
@@ -80,7 +102,7 @@ async function speakText() {
         
         // Handle audio errors
         audio.addEventListener('error', () => {
-            mouthOverlay.classList.remove('talking');
+            characterImg.src = currentCharacterFrames.neutral;
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Error playing audio. Please try again.';
@@ -88,7 +110,7 @@ async function speakText() {
         
     } catch (error) {
         console.error('Error with TTS:', error);
-        mouthOverlay.classList.remove('talking');
+        characterImg.src = currentCharacterFrames.neutral;
         isSpeaking = false;
         speakBtn.disabled = false;
         status.textContent = 'Error generating speech. Please try again.';
@@ -98,4 +120,3 @@ async function speakText() {
 // Initialize UI state
 textInput.disabled = true;
 speakBtn.disabled = true;
-
