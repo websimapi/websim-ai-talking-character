@@ -15,10 +15,15 @@ const useUploadBtn = document.getElementById('useUploadBtn');
 
 generateBtn.addEventListener('click', generateCharacter);
 speakBtn.addEventListener('click', speakText);
-useUploadBtn.addEventListener('click', () => {
+
+// trigger file picker when unified button clicked
+useUploadBtn.addEventListener('click', () => uploadInput.click());
+
+// when a file is chosen, auto-use it as the neutral frame
+uploadInput.addEventListener('change', () => {
     const file = uploadInput.files && uploadInput.files[0];
     if (!file) {
-        status.textContent = 'Please choose an image file to upload first.';
+        status.textContent = 'No file selected.';
         return;
     }
     const reader = new FileReader();
@@ -28,7 +33,6 @@ useUploadBtn.addEventListener('click', () => {
         characterImg.src = uploadedNeutralDataUrl;
         characterImg.dataset.source = 'flux-simulated';
         status.textContent = 'Uploaded image set as neutral frame (simulating Flux Schnell response). Now click "Generate Character" to create talking frame.';
-        // After upload, switch input placeholder to generate prompt for talking frame if desired
         textInput.placeholder = 'Enter prompt for talking frame / style...';
     };
     reader.readAsDataURL(file);
