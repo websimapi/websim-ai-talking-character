@@ -16,13 +16,28 @@
         
         <div class="controls">
             <input type="file" id="uploadInput" accept="image/*" hidden>
-            <button id="useUploadBtn" class="btn">Upload / Use Image</button>
-            <input type="text" id="textInput" placeholder="Enter prompt to generate character..." maxlength="200">
-            <button id="generateBtn" class="btn">Generate Character</button>
-            <button id="speakBtn" class="btn">Speak</button>
+            <label for="uploadInput" class="btn file-btn">Choose Image &amp; Generate</label>
+            <!-- Upload input now auto-triggers generation on file selection -->
+
+            <div class="inline-row">
+                <input type="text" id="textInput" placeholder="Enter prompt to generate character..." maxlength="200">
+                <button id="generateBtn" class="btn">Generate Character</button>
+            </div>
+
+            <!-- new: separate speak input for speech text -->
+            <div class="inline-row" style="margin-top:6px;">
+                <input type="text" id="speakInput" placeholder="Enter text to speak..." maxlength="300">
+                <button id="speakBtn" class="btn">Speak</button>
+            </div>
         </div>
         
         <div class="status" id="status">Click "Generate Character" to create your AI character!</div>
+        <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+            <div class="loading-card">
+                <div class="spinner large" role="status" aria-label="Loading"></div>
+                <div id="loadingMessage" class="loading-message">Loading...</div>
+            </div>
+        </div>
     </div>
     
     <script type="module" src="script.js"></script>

@@ -7,76 +7,49 @@ let talkInterval = null;
 const characterImg = document.getElementById('character');
 const mouthOverlay = document.getElementById('mouthOverlay');
 const textInput = document.getElementById('textInput');
+const speakInput = document.getElementById('speakInput');
 const generateBtn = document.getElementById('generateBtn');
 const speakBtn = document.getElementById('speakBtn');
 const status = document.getElementById('status');
 const uploadInput = document.getElementById('uploadInput');
-const useUploadBtn = document.getElementById('useUploadBtn');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingMessage = document.getElementById('loadingMessage');
 
-generateBtn.addEventListener('click', generateCharacter);
-speakBtn.addEventListener('click', speakText);
-
-// trigger file picker when unified button clicked
-useUploadBtn.addEventListener('click', () => uploadInput.click());
-
-// when a file is chosen, auto-use it as the neutral frame
-uploadInput.addEventListener('change', () => {
-    const file = uploadInput.files && uploadInput.files[0];
-    if (!file) {
-        status.textContent = 'No file selected.';
-        return;
+function showLoading(message = 'Loading...') {
+    if (loadingOverlay) {
+        loadingMessage.textContent = message;
+        loadingOverlay.setAttribute('aria-hidden', 'false');
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-        uploadedNeutralDataUrl = reader.result;
-        currentCharacterFrames.neutral = uploadedNeutralDataUrl;
-        characterImg.src = uploadedNeutralDataUrl;
-        characterImg.dataset.source = 'flux-simulated';
-        status.textContent = 'Uploaded image set as neutral frame (simulating Flux Schnell response). Now click "Generate Character" to create talking frame.';
-        textInput.placeholder = 'Enter prompt for talking frame / style...';
-    };
-    reader.readAsDataURL(file);
-});
+}
 
-async function generateCharacter() {
+function hideLoading() {
+    if (loadingOverlay) {
+        loadingOverlay.setAttribute('aria-hidden', 'true');
+    }
+}
+
+generateBtn.addEventListener('click', async () => {
     if (isGenerating) return;
-    
-    // new: require a prompt from the input before generating
     const promptText = textInput.value.trim();
     if (!promptText) {
         status.textContent = 'Please enter a prompt to generate the character.';
         return;
     }
-    
     isGenerating = true;
     generateBtn.disabled = true;
-    status.textContent = 'Generating character... This may take about 20 seconds (1-2 images).';
-    
+    showLoading('Generating base character and talking frame...');
+    status.textContent = 'Generating base character and talking frame...';
     try {
-        let result1 = null;
-        // If an uploaded neutral exists, use it instead of generating with Flux Schnell
-        if (uploadedNeutralDataUrl) {
-            status.textContent = 'Using uploaded neutral frame...';
-            currentCharacterFrames.neutral = uploadedNeutralDataUrl;
-            characterImg.src = currentCharacterFrames.neutral;
-            // convert dataURL to blob-like input for imageGen if needed
-            result1 = { url: currentCharacterFrames.neutral };
-        } else {
-            // Generate first frame using Flux Schnell
-            status.textContent = 'Generating neutral frame with Flux Schnell...';
-            result1 = await websim.imageGen({
-                prompt: promptText, // use user's input as generation prompt
-                width: 512,
-                height: 512
-            });
-            currentCharacterFrames.neutral = result1.url;
-            characterImg.src = currentCharacterFrames.neutral;
-        }
-        
-        // Generate talking frame using Nano Bananas by showing the first image
-        status.textContent = 'Generating talking frame with Nano Bananas...';
-        
-        // Convert first image to base64 for input (handle dataURL already)
+        // Generate base (neutral) frame
+        const result1 = await websim.imageGen({
+            prompt: promptText,
+            width: 512,
+            height: 512
+        });
+        currentCharacterFrames.neutral = result1.url;
+        characterImg.src = currentCharacterFrames.neutral;
+
+        // Prepare base64 for next generation
         let base64;
         if (result1.url.startsWith('data:')) {
             base64 = result1.url;
@@ -89,41 +62,83 @@ async function generateCharacter() {
                 reader.readAsDataURL(blob);
             });
         }
-        
+
+        // Generate talking frame automatically
         const result2 = await websim.imageGen({
             prompt: "Make this character's mouth open as if talking or speaking, keep the same art style and colors",
             image_inputs: [{ url: base64 }],
             width: 512,
             height: 512
         });
-        
         currentCharacterFrames.talking = result2.url;
-        
-        // After generation, switch the input to be a TTS input
-        status.textContent = 'Character generated with 2 frames! Now enter text to speak.';
+
+        status.textContent = 'Character generated with 2 frames! Enter text to speak.';
+        hideLoading();
         textInput.value = '';
-        textInput.placeholder = 'Enter text to speak...';
-        textInput.disabled = false;
+        // ensure speak input is focused for speaking
+        speakInput.placeholder = 'Enter text to speak...';
+        speakInput.value = '';
         speakBtn.disabled = false;
     } catch (error) {
         console.error('Error generating character:', error);
-        status.textContent = 'Error generating character. Please try again.';
+        status.textContent = 'Error generating character or talking frame. Please try again.';
+        hideLoading();
     } finally {
         isGenerating = false;
         generateBtn.disabled = false;
     }
-}
+});
+
+uploadInput.addEventListener('change', async () => {
+    const file = uploadInput.files && uploadInput.files[0];
+    if (!file) {
+        status.textContent = 'Please choose an image file to upload first.';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+        uploadedNeutralDataUrl = reader.result;
+        currentCharacterFrames.neutral = uploadedNeutralDataUrl;
+        characterImg.src = uploadedNeutralDataUrl;
+        status.textContent = 'Uploaded image set; generating talking frame...';
+        showLoading('Generating talking frame from uploaded image...');
+        try {
+            const base64 = uploadedNeutralDataUrl;
+            const result2 = await websim.imageGen({
+                prompt: "Make this character's mouth open as if talking or speaking, keep the same art style and colors",
+                image_inputs: [{ url: base64 }],
+                width: 512,
+                height: 512
+            });
+            currentCharacterFrames.talking = result2.url;
+            status.textContent = 'Frames ready! Enter text and press Speak to animate.';
+            hideLoading();
+            speakInput.placeholder = 'Enter text to speak...';
+            speakBtn.disabled = false;
+        } catch (err) {
+            console.error(err);
+            status.textContent = 'Error generating talking frame from upload.';
+            hideLoading();
+        }
+    };
+    reader.readAsDataURL(file);
+});
 
 async function speakText() {
-    if (isSpeaking || !textInput.value.trim()) return;
+    const textToSpeak = speakInput.value.trim();
+    if (isSpeaking || !textToSpeak) {
+        if (!textToSpeak) status.textContent = 'Please enter text to speak.';
+        return;
+    }
     
     isSpeaking = true;
     speakBtn.disabled = true;
-    const text = textInput.value;
+    const text = textToSpeak;
     
     try {
         // Generate speech
         status.textContent = 'Generating speech...';
+        showLoading('Generating speech and playing audio...');
         const ttsResult = await websim.textToSpeech({
             text: text,
             voice: 'en-male'
@@ -131,6 +146,9 @@ async function speakText() {
         
         // Create audio element
         const audio = new Audio(ttsResult.url);
+        
+        // hide loading UI before starting playback/animation
+        hideLoading();
         
         // Start mouth animation by cycling frames
         let showTalking = true;
@@ -154,6 +172,7 @@ async function speakText() {
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Ready to speak again!';
+            hideLoading();
         });
         
         // Handle audio errors
@@ -163,6 +182,7 @@ async function speakText() {
             isSpeaking = false;
             speakBtn.disabled = false;
             status.textContent = 'Error playing audio. Please try again.';
+            hideLoading();
         });
         
     } catch (error) {
@@ -172,9 +192,13 @@ async function speakText() {
         isSpeaking = false;
         speakBtn.disabled = false;
         status.textContent = 'Error generating speech. Please try again.';
+        hideLoading();
     }
 }
 
-// Initialize UI state
+// attach speak button and initialize UI state
+speakBtn.addEventListener('click', speakText);
+
 textInput.disabled = false; // allow entering prompt for generation initially
+speakInput.disabled = false;
 speakBtn.disabled = true;
