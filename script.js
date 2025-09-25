@@ -16,6 +16,13 @@ speakBtn.addEventListener('click', speakText);
 async function generateCharacter() {
     if (isGenerating) return;
     
+    // new: require a prompt from the input before generating
+    const promptText = textInput.value.trim();
+    if (!promptText) {
+        status.textContent = 'Please enter a prompt to generate the character.';
+        return;
+    }
+    
     isGenerating = true;
     generateBtn.disabled = true;
     status.textContent = 'Generating character... This will take about 20 seconds (2 images).';
@@ -24,7 +31,7 @@ async function generateCharacter() {
         // Generate first frame using Flux Schnell
         status.textContent = 'Generating neutral frame with Flux Schnell...';
         const result1 = await websim.imageGen({
-            prompt: "A friendly cartoon character face, neutral expression, clean simple design, bright colors, 2D illustration style",
+            prompt: promptText, // use user's input as generation prompt
             width: 512,
             height: 512
         });
@@ -53,10 +60,14 @@ async function generateCharacter() {
         
         currentCharacterFrames.talking = result2.url;
         
-        status.textContent = 'Character generated with 2 frames! Now you can make it talk.';
+        // After generation, switch the input to be a TTS input
+        status.textContent = 'Character generated with 2 frames! Now enter text to speak.';
+        textInput.value = '';
+        textInput.placeholder = 'Enter text to speak...';
         textInput.disabled = false;
         speakBtn.disabled = false;
-        
+        // optionally disable generate to avoid accidental re-generation until user clears prompt
+        // keep generate enabled so they can regenerate if desired
     } catch (error) {
         console.error('Error generating character:', error);
         status.textContent = 'Error generating character. Please try again.';
@@ -128,5 +139,5 @@ async function speakText() {
 }
 
 // Initialize UI state
-textInput.disabled = true;
+textInput.disabled = false; // allow entering prompt for generation initially
 speakBtn.disabled = true;
