@@ -25,10 +25,13 @@ useUploadBtn.addEventListener('click', () => {
     reader.onload = () => {
         uploadedNeutralDataUrl = reader.result;
         currentCharacterFrames.neutral = uploadedNeutralDataUrl;
-        characterImg.src = uploadedNeutralDataUrl;
+        currentCharacterFrames.talking = null; // ensure talking frame is cleared until generated
+        characterImg.src = uploadedNeutralDataUrl; // render immediately as first frame
         status.textContent = 'Uploaded image set as neutral frame. Now click "Generate Character" to create talking frame.';
         // After upload, switch input placeholder to generate prompt for talking frame if desired
         textInput.placeholder = 'Enter prompt for talking frame / style...';
+        generateBtn.disabled = false; // allow generation after upload
+        speakBtn.disabled = true; // speaking only after talking frame exists
     };
     reader.readAsDataURL(file);
 });
